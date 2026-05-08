@@ -1,4 +1,4 @@
-# DOCX Exporter — Desktop App (Tauri 2)
+# Shatter — Desktop App (Tauri 2)
 
 A fully native desktop app built with Tauri 2 + React + Vite. No Electron, no bundled Chromium, no Node.js attack surface. Uses the OS's native WebView (WebKit on Mac, WebView2 on Windows).
 
@@ -17,7 +17,11 @@ A fully native desktop app built with Tauri 2 + React + Vite. No Electron, no bu
 
 ---
 
-## Quick start
+## Quick start for Windows
+
+Download Shatter.exe from 
+
+## Quick start for your machine (Macos, Windows)
 
 ```bash
 npm install
@@ -30,8 +34,8 @@ npm run tauri:build
 ```
 
 Installers appear in `src-tauri/target/release/bundle/`:
-- **Windows:** `nsis/DOCX Exporter_1.0.0_x64-setup.exe`
-- **Mac:** `dmg/DOCX Exporter_1.0.0_x64.dmg`
+- **Windows:** `nsis/Shatter_1.0.0_x64-setup.exe`
+- **Mac:** `dmg/Shatter_1.0.0_x64.dmg`
 
 ---
 
@@ -62,10 +66,10 @@ git push origin v1.0.0
 ```
 
 After ~8 minutes you get:
-- `DOCX Exporter_1.0.0_x64-setup.exe` (Windows NSIS installer)
-- `DOCX Exporter_1.0.0_x64.msi` (Windows MSI)
-- `DOCX Exporter_1.0.0_aarch64.dmg` (Mac Apple Silicon)
-- `DOCX Exporter_1.0.0_x64.dmg` (Mac Intel)
+- `Shatter_1.0.0_x64-setup.exe` (Windows NSIS installer)
+- `Shatter_1.0.0_x64.msi` (Windows MSI)
+- `Shatter_1.0.0_aarch64.dmg` (Mac Apple Silicon)
+- `Shatter_1.0.0_x64.dmg` (Mac Intel)
 
 All attached to a GitHub Release automatically.
 
@@ -92,7 +96,7 @@ Add the private key content and password to your repo's **Settings → Secrets �
 **Mac** — "Developer cannot be verified":
 > Right-click the `.app` → **Open** → **Open anyway**
 
-Or via terminal: `xattr -c /Applications/DOCX\ Exporter.app`
+Or via terminal: `xattr -c /Applications/Shatter.app`
 
 **Windows** — SmartScreen:
 > **More info** → **Run anyway**
@@ -104,7 +108,7 @@ These are normal for apps without an Apple Developer ID ($99/yr) or Windows EV c
 ## Project structure
 
 ```
-docx-exporter-tauri/
+Shatter/
 ├── src/                          React frontend (unchanged from web version)
 │   ├── components/
 │   │   ├── DropZone.jsx/.css
@@ -149,3 +153,5 @@ docx-exporter-tauri/
 | ASAR integrity bypass | N/A | Unfixed CVE |
 | IPC model | Capability-scoped | Unrestricted by default |
 | Rust security | Memory-safe core | C++ + JS bridge |
+
+
