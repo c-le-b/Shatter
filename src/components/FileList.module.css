@@ -1,0 +1,15 @@
+.wrap { margin-top: 12px; }
+.summary { display: flex; gap: 16px; align-items: center; padding: 6px 2px; font-size: 12px; margin-bottom: 4px; }
+.countGood { color: var(--green); display: flex; align-items: center; gap: 4px; }
+.countSkip { color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
+.total { color: var(--text-muted); margin-left: auto; }
+.list { max-height: 200px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-surface); }
+.row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--border); transition: background 0.1s; }
+.row:last-child { border-bottom: none; }
+.row:hover { background: var(--bg-elevated); }
+.skipped { opacity: 0.38; }
+.fileIcon { font-size: 14px; color: var(--text-muted); flex-shrink: 0; }
+.path { flex: 1; font-size: 12px; font-family: var(--font-mono); color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.size { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
+.removeBtn { background: none; border: none; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; padding: 2px; font-size: 12px; flex-shrink: 0; border-radius: 4px; transition: color 0.15s, background 0.15s; }
+.removeBtn:hover { color: var(--red); background: var(--red-dim); }

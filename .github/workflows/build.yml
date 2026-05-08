@@ -1,0 +1,130 @@
+name: Build & release
+
+on:
+  push:
+    tags:
+      - 'v*'            # push a tag like v1.0.0 to trigger
+  workflow_dispatch:    # or trigger manually from GitHub UI
+
+jobs:
+  build-windows:
+    name: Windows (.exe + .msi)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install JS deps
+        run: npm ci
+
+      - name: Build Tauri app (Windows)
+        run: npm run tauri build -- --target x86_64-pc-windows-msvc
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installers
+          path: |
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
+          if-no-files-found: warn
+
+  build-mac:
+    name: macOS (.dmg — Intel + Apple Silicon)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Rust stable (both Mac targets)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install JS deps
+        run: npm ci
+
+      - name: Build Tauri app — Apple Silicon (arm64)
+        run: npm run tauri build -- --target aarch64-apple-darwin
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: Build Tauri app — Intel (x86_64)
+        run: npm run tauri build -- --target x86_64-apple-darwin
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-installers
+          path: |
+            src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+            src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
+          if-no-files-found: warn
+
+  # Creates a GitHub Release and attaches all installers automatically
+  release:
+    name: Publish release
+    needs: [build-windows, build-mac]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: DOCX Exporter ${{ github.ref_name }}
+          body: |
+            ## DOCX Exporter ${{ github.ref_name }}
+
+            ### Downloads
+            | Platform | File | Notes |
+            |---|---|---|
+            | Windows | `*-setup.exe` | NSIS one-click installer |
+            | Windows | `*.msi` | MSI installer (enterprise/IT) |
+            | macOS (Apple Silicon) | `*_aarch64.dmg` | M1/M2/M3 Macs |
+            | macOS (Intel) | `*_x64.dmg` | Intel Macs |
+
+            ### First-launch warnings (expected for unsigned builds)
+            - **Mac**: right-click the `.app` → Open → "Open anyway"
+            - **Windows**: SmartScreen → "More info" → "Run anyway"
+          files: |
+            windows-installers/**/*
+            mac-installers/**/*
+          draft: false
+          prerelease: false

@@ -1,0 +1,12 @@
+.wrap { display: flex; flex-direction: column; gap: 8px; }
+.label { font-size: 11px; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; min-height: 28px; }
+.tag { display: inline-flex; align-items: center; gap: 5px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px 3px 12px; font-size: 12px; color: var(--text-secondary); font-family: var(--font-mono); transition: border-color 0.15s; }
+.tag:hover { border-color: var(--border-hover); }
+.remove { background: none; border: none; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; padding: 0; font-size: 11px; transition: color 0.15s; }
+.remove:hover { color: var(--red); }
+.addRow { display: flex; gap: 8px; }
+.input { flex: 1; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-family: var(--font-mono); font-size: 12px; padding: 6px 10px; outline: none; transition: border-color 0.15s; }
+.input:focus { border-color: var(--accent); }
+.addBtn { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-secondary); cursor: pointer; font-size: 12px; padding: 6px 12px; display: flex; align-items: center; gap: 4px; transition: background 0.15s, border-color 0.15s, color 0.15s; white-space: nowrap; }
+.addBtn:hover { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }

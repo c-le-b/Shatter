@@ -1,0 +1,12 @@
+.wrap { display: flex; flex-direction: column; gap: 8px; }
+.progressRow { display: flex; align-items: center; gap: 10px; }
+.progressBar { flex: 1; height: 4px; background: var(--bg-elevated); border-radius: 999px; overflow: hidden; }
+.progressFill { height: 100%; background: var(--accent); border-radius: 999px; transition: width 0.25s ease; }
+.pct { font-size: 11px; color: var(--text-muted); min-width: 32px; text-align: right; font-family: var(--font-mono); }
+.log { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px 14px; max-height: 180px; overflow-y: auto; font-family: var(--font-mono); font-size: 12px; }
+.line { display: flex; align-items: baseline; gap: 8px; line-height: 1.7; color: var(--text-secondary); }
+.prefix { flex-shrink: 0; width: 12px; color: var(--text-muted); }
+.ok .prefix { color: var(--green); }
+.err .prefix, .err { color: var(--red); }
+.warn .prefix, .warn { color: var(--amber); }
+.info { color: var(--text-muted); }
