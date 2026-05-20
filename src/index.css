@@ -7,25 +7,40 @@
 }
 
 :root {
-  --bg: #0f0f11;
-  --bg-surface: #18181c;
-  --bg-elevated: #222228;
-  --bg-input: #1c1c22;
-  --border: rgba(255,255,255,0.08);
-  --border-hover: rgba(255,255,255,0.16);
-  --text-primary: #f0eff4;
-  --text-secondary: #9998a8;
-  --text-muted: #5a5968;
-  --accent: #7c6af7;
-  --accent-dim: rgba(124,106,247,0.15);
-  --accent-glow: rgba(124,106,247,0.35);
+  /* --- Deep Navy / Ink background family --- */
+  --bg: #070b14;            /* main background */
+  --bg-surface: #0b1222;    /* panels/sidebar */
+  --bg-elevated: #101a2f;   /* elevated cards/rows */
+  --bg-input: #0c1529;      /* input backgrounds */
+
+  /* --- Borders & separators --- */
+  --border: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.16);
+
+  /* --- Text --- */
+  --text-primary: #f2f4ff;
+  --text-secondary: rgba(242, 244, 255, 0.70);
+  --text-muted: rgba(242, 244, 255, 0.40);
+
+  /* --- Accent: darker gold/yellow --- */
+  --accent: #d8b04c;                 /* primary accent */
+  --accent-dim: rgba(216, 176, 76, 0.14);
+  --accent-glow: rgba(216, 176, 76, 0.30);
+
+  /* Status colors (keep your semantics) */
   --green: #34d399;
-  --amber: #fbbf24;
+
+  /* Make amber match the new gold family (used in log warn states) */
+  --amber: #d8b04c;
+
   --red: #f87171;
-  --red-dim: rgba(248,113,113,0.12);
+  --red-dim: rgba(248, 113, 113, 0.12);
+
+  /* Radii & fonts (unchanged) */
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 16px;
+
   --font-sans: 'DM Sans', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 }

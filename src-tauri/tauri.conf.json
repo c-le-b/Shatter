@@ -22,7 +22,8 @@
         "fullscreen": false,
         "center": true,
         "decorations": true,
-        "transparent": false
+        "transparent": false,
+        "dragDropEnabled": true
       }
     ],
     "security": {
@@ -42,9 +43,7 @@
     "targets": "all",
     "windows": {
       "wix": {},
-      "nsis": {
-        "installMode": "currentUser"
-      }
+      "nsis": { "installMode": "currentUser" }
     },
     "macOS": {
       "entitlements": null,
@@ -54,12 +53,8 @@
       "signingIdentity": null
     },
     "linux": {
-      "deb": {
-        "depends": []
-      },
-      "rpm": {
-        "depends": []
-      }
+      "deb": { "depends": [] },
+      "rpm": { "depends": [] }
     }
   }
 }

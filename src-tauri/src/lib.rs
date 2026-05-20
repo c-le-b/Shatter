@@ -1,21 +1,31 @@
-use tauri::Manager;
+use tauri::{Emitter, Manager, WindowEvent};
+
+mod commands;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_shell::init())
-        .setup(|app| {
-            let window = app.get_webview_window("main").unwrap();
+  tauri::Builder::default()
+    .plugin(tauri_plugin_shell::init())
+    .invoke_handler(tauri::generate_handler![
+      commands::scan_paths,
+      commands::read_text
+    ])
+    .on_window_event(|window, event| {
+      if let WindowEvent::DragDrop(drag) = event {
+        if let tauri::DragDropEvent::Drop { paths, .. } = drag {
+          let _ = window.emit("shatter://dropped", paths);
+        }
+      }
+    })
+    .setup(|app| {
+      let window = app.get_webview_window("main").unwrap();
 
-            // In debug builds, open devtools automatically
-            #[cfg(debug_assertions)]
-            window.open_devtools();
+      #[cfg(debug_assertions)]
+      window.open_devtools();
 
-            // Center the window on startup
-            window.center()?;
-
-            Ok(())
-        })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+      window.center()?;
+      Ok(())
+    })
+    .run(tauri::generate_context!())
+    .expect("error while running tauri application");
 }

@@ -1,51 +1,61 @@
 import { useRef, useState } from 'react'
 import styles from './DropZone.module.css'
 
+// readEntries must be called in a loop — it returns at most ~100 entries per call.
+async function readAllEntries(reader) {
+  const all = []
+  while (true) {
+    const batch = await new Promise((resolve, reject) =>
+      reader.readEntries(resolve, reject)
+    )
+    if (!batch.length) break
+    all.push(...batch)
+  }
+  return all
+}
 
 async function traverseEntry(entry, path, out) {
-  return new Promise((resolve) => {
-    if (entry.isFile) {
+  if (entry.isFile) {
+    await new Promise((resolve, reject) => {
       entry.file((file) => {
         Object.defineProperty(file, 'webkitRelativePath', {
           value: path + file.name,
-        });
-        out.push(file);
-        resolve();
-      });
-    } else if (entry.isDirectory) {
-      const reader = entry.createReader();
-      reader.readEntries(async (entries) => {
-        for (const ent of entries) {
-          await traverseEntry(ent, path + entry.name + '/', out);
-        }
-        resolve();
-      });
+          writable: false,
+          configurable: true,
+        })
+        out.push(file)
+        resolve()
+      }, reject)
+    })
+  } else if (entry.isDirectory) {
+    const reader = entry.createReader()
+    const entries = await readAllEntries(reader)
+    for (const ent of entries) {
+      await traverseEntry(ent, path + entry.name + '/', out)
     }
-  });
+  }
 }
-
 
 export default function DropZone({ onFiles }) {
   const [dragging, setDragging] = useState(false)
   const inputRef = useRef(null)
 
   const handleDrop = async (e) => {
-    e.preventDefault();
-    setDragging(false);
+    e.preventDefault()
+    setDragging(false)
 
-    const items = [...e.dataTransfer.items];
-    const files = [];
+    const items = [...(e.dataTransfer.items || [])]
+    const files = []
 
     for (const item of items) {
-      const entry = item.webkitGetAsEntry?.();
+      const entry = item.webkitGetAsEntry?.()
       if (entry) {
-        await traverseEntry(entry, '', files);
+        await traverseEntry(entry, '', files)
       }
     }
 
-    if (files.length) onFiles(files);
-  };
-
+    if (files.length) onFiles(files)
+  }
 
   const handleChange = (e) => {
     const files = [...e.target.files]

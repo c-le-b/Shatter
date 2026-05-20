@@ -19,7 +19,7 @@ A fully native desktop app built with Tauri 2 + React + Vite. No Electron, no bu
 
 ## Quick start for Windows
 
-Download Shatter.exe from 
+Download Shatter.exe from /Downloads. Macos will be made available soon.
 
 ## Quick start for your machine (Macos, Windows)
 
