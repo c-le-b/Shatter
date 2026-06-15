@@ -1,13 +1,19 @@
-// src/lib/pdfBuilder.js
-
 import { jsPDF } from 'jspdf'
 
 function normalizeNewlines(str) {
   return String(str ?? '').replace(/\r\n/g, '\n').replace(/\r/g, '\n')
 }
 
-// Simple, robust PDF output using a monospaced font and wrapped lines.
-// This is meant for "source export" readability, not fancy layout.
+/**
+ * Builds a PDF Blob from an array of { path, content } chunks.
+ * Uses jsPDF with Courier (a core font) for a monospaced, source-code feel.
+ *
+ * Options:
+ *   title      - text rendered at the top of the first page
+ *   fontSize   - font size in points (default 9)
+ *   margin     - page margin in mm (default 12)
+ *   lineHeight - vertical spacing per line in mm (default 4.2)
+ */
 export async function buildPdfBlob(chunks, opts = {}) {
   const {
     title = 'Export',
@@ -16,13 +22,8 @@ export async function buildPdfBlob(chunks, opts = {}) {
     lineHeight = 4.2,
   } = opts
 
-  const doc = new jsPDF({
-    unit: 'mm',
-    format: 'letter',
-    compress: true,
-  })
+  const doc = new jsPDF({ unit: 'mm', format: 'letter', compress: true })
 
-  // Monospace-like feel (Courier is available in jsPDF core fonts)
   doc.setFont('courier', 'normal')
   doc.setFontSize(fontSize)
 
@@ -44,7 +45,6 @@ export async function buildPdfBlob(chunks, opts = {}) {
     }
   }
 
-  // Optional title on first page
   if (title) {
     doc.setFont('courier', 'bold')
     doc.text(title, x, y)
@@ -53,36 +53,30 @@ export async function buildPdfBlob(chunks, opts = {}) {
   }
 
   for (const { path, content } of chunks) {
-    // File header
+    // File path header
     doc.setFont('courier', 'bold')
     const headerLines = doc.splitTextToSize(`==== ${path} ====`, usableWidth)
-    for (const hl of headerLines) {
+    for (const line of headerLines) {
       newPageIfNeeded()
-      doc.text(hl, x, y)
+      doc.text(line, x, y)
       y += lineHeight
     }
     y += lineHeight * 0.5
     doc.setFont('courier', 'normal')
 
     // File content
-    const text = normalizeNewlines(content)
-    const rawLines = text.split('\n')
-
-    for (const raw of rawLines) {
-      // Wrap each line to fit the page width
+    for (const raw of normalizeNewlines(content).split('\n')) {
       const wrapped = doc.splitTextToSize(raw.length ? raw : ' ', usableWidth)
-      for (const w of wrapped) {
+      for (const line of wrapped) {
         newPageIfNeeded()
-        doc.text(w, x, y)
+        doc.text(line, x, y)
         y += lineHeight
       }
     }
 
-    // Spacing between files
     y += lineHeight * 1.5
     newPageIfNeeded()
   }
 
-  // jsPDF can output a Blob directly
   return doc.output('blob')
 }

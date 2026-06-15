@@ -1,4 +1,3 @@
-// src/App.jsx
 import { useState, useCallback, useEffect } from 'react'
 import DropZone from './components/DropZone'
 import FileList from './components/FileList'
@@ -15,6 +14,7 @@ import {
   countChars,
   estimateTokens,
   TEXT_LIKE_EXTENSIONS,
+  getExtension,
 } from './lib/fileUtils'
 import { buildDocxBlob, downloadBlob } from './lib/docxBuilder'
 import { buildTxtBlob } from './lib/txtBuilder'
@@ -27,29 +27,22 @@ import shatterLogoWide from '../dist/assets/shatter-logo-wide.png'
 
 const STATUS = { IDLE: 'idle', RUNNING: 'running', DONE: 'done' }
 
-function getExt(name = '') {
-  const i = name.lastIndexOf('.')
-  return i >= 0 ? name.slice(i).toLowerCase() : ''
-}
-
 export default function App() {
   const [files, setFiles] = useState([])
   const [includedExts, setIncludedExts] = useState(new Set(DEFAULT_EXTENSIONS))
   const [skipDirs, setSkipDirs] = useState(new Set(DEFAULT_SKIP_DIRS))
   const [excludeFiles, setExcludeFiles] = useState(new Set(DEFAULT_EXCLUDE_FILES))
 
-  const [maxChars, setMaxChars] = useState(10000)
+  const [maxChars, setMaxChars] = useState(10_000)
   const [maxCharsRaw, setMaxCharsRaw] = useState('10000')
   const [rootLabel, setRootLabel] = useState('project')
 
   const [status, setStatus] = useState(STATUS.IDLE)
   const [logEntries, setLogEntries] = useState([])
   const [progress, setProgress] = useState(0)
-
   const [stats, setStats] = useState({ files: 0, chars: 0, tokens: 0, docs: 0 })
   const [exportFormat, setExportFormat] = useState('md')
 
-  const [scanKey, setScanKey] = useState(0)
   const [scanTotals, setScanTotals] = useState({
     chars: 0,
     tokens: 0,
@@ -57,17 +50,18 @@ export default function App() {
     skippedNonText: 0,
   })
 
+  const isRunning = status === STATUS.RUNNING
+
   const addLog = useCallback((text, type = 'info') => {
     setLogEntries(prev => [...prev, { text, type }])
   }, [])
 
+  // Deduplicated file accumulation
   const handleFiles = useCallback((incoming) => {
     setFiles(prev => {
-      const existing = new Set(prev.map(f => `${f.name}::${f.size}::${f.webkitRelativePath || ''}`))
-      return [
-        ...prev,
-        ...incoming.filter(f => !existing.has(`${f.name}::${f.size}::${f.webkitRelativePath || ''}`)),
-      ]
+      const seen = new Set(prev.map(f => `${f.name}::${f.size}::${f.webkitRelativePath || ''}`))
+      const fresh = incoming.filter(f => !seen.has(`${f.name}::${f.size}::${f.webkitRelativePath || ''}`))
+      return [...prev, ...fresh]
     })
   }, [])
 
@@ -75,58 +69,54 @@ export default function App() {
     setFiles(prev => prev.filter((_, i) => i !== idx))
   }, [])
 
+  // Extension filter handlers
   const addExt = useCallback((val) => {
     const ext = val.startsWith('.') ? val.toLowerCase() : `.${val.toLowerCase()}`
     setIncludedExts(prev => new Set([...prev, ext]))
   }, [])
+
   const removeExt = useCallback((val) => {
-    setIncludedExts(prev => {
-      const s = new Set(prev)
-      s.delete(val)
-      return s
-    })
+    setIncludedExts(prev => { const s = new Set(prev); s.delete(val); return s })
   }, [])
 
+  // Skip-directory handlers
   const addSkip = useCallback((val) => {
     setSkipDirs(prev => new Set([...prev, val]))
   }, [])
+
   const removeSkip = useCallback((val) => {
-    setSkipDirs(prev => {
-      const s = new Set(prev)
-      s.delete(val)
-      return s
-    })
+    setSkipDirs(prev => { const s = new Set(prev); s.delete(val); return s })
   }, [])
 
+  // Exclude-filename handlers
   const addExclude = useCallback((val) => {
-    const name = String(val || '').trim()
+    const name = String(val || '').trim().toLowerCase()
     if (!name) return
-    setExcludeFiles(prev => new Set([...prev, name.toLowerCase()]))
+    setExcludeFiles(prev => new Set([...prev, name]))
   }, [])
+
   const removeExclude = useCallback((val) => {
-    setExcludeFiles(prev => {
-      const s = new Set(prev)
-      s.delete(String(val).toLowerCase())
-      return s
-    })
+    setExcludeFiles(prev => { const s = new Set(prev); s.delete(String(val).toLowerCase()); return s })
   }, [])
 
+  // Derived count used by the export button and stat card
   const includedCount = files.filter(f => isFileIncluded(f, includedExts, skipDirs, excludeFiles)).length
-  const isRunning = status === STATUS.RUNNING
 
-  // Pre-scan (text-like only)
+  // Pre-scan: recompute char/token estimates whenever filters or files change
   useEffect(() => {
     if (isRunning) return
+
     let cancelled = false
 
     const run = async () => {
       const included = files.filter(f => isFileIncluded(f, includedExts, skipDirs, excludeFiles))
+
       if (included.length === 0) {
         setScanTotals({ chars: 0, tokens: 0, scanning: false, skippedNonText: 0 })
         return
       }
 
-      setScanTotals(s => ({ ...s, chars: 0, tokens: 0, scanning: true, skippedNonText: 0 }))
+      setScanTotals(s => ({ ...s, scanning: true }))
 
       let totalChars = 0
       let totalTokens = 0
@@ -135,21 +125,18 @@ export default function App() {
       for (const file of included) {
         if (cancelled) return
 
-        const ext = getExt(file.name)
-        if (!TEXT_LIKE_EXTENSIONS.has(ext)) {
+        if (!TEXT_LIKE_EXTENSIONS.has(getExtension(file.name))) {
           skippedNonText++
           continue
         }
 
         let content = ''
-        try {
-          content = await readFileAsText(file)
-        } catch {
-          content = ''
-        }
+        try { content = await readFileAsText(file) } catch { /* ignore unreadable files */ }
 
         totalChars += countChars(content)
         totalTokens += estimateTokens(content)
+
+        // Yield so the UI doesn't freeze on large file sets
         await new Promise(r => setTimeout(r, 0))
       }
 
@@ -160,9 +147,12 @@ export default function App() {
 
     run()
     return () => { cancelled = true }
-  }, [files, includedExts, skipDirs, excludeFiles, isRunning, scanKey])
+  }, [files, includedExts, skipDirs, excludeFiles, isRunning])
 
+  // Tauri native drag-and-drop (folder paths from OS)
   useEffect(() => {
+    let cleanup
+
     const setup = async () => {
       const unlisten = await listen('shatter://dropped', async (event) => {
         try {
@@ -177,12 +167,11 @@ export default function App() {
             return
           }
 
-          // Convert scanned entries into "file-like" objects your app already understands.
-          const fileLikes = scanned.map((f) => ({
+          const fileLikes = scanned.map(f => ({
             name: f.name,
             size: f.size,
             webkitRelativePath: f.rel_path,
-            __absPath: f.abs_path
+            __absPath: f.abs_path,
           }))
 
           handleFiles(fileLikes)
@@ -195,14 +184,9 @@ export default function App() {
       return unlisten
     }
 
-    let cleanup
-    setup().then((u) => { cleanup = u })
-
-    return () => {
-      if (typeof cleanup === 'function') cleanup()
-    }
+    setup().then(u => { cleanup = u })
+    return () => { if (typeof cleanup === 'function') cleanup() }
   }, [addLog, handleFiles])
-
 
   const handleExport = async () => {
     setStatus(STATUS.RUNNING)
@@ -229,7 +213,7 @@ export default function App() {
             docs: currentDocNum ?? 0,
           })
         },
-        excludeFiles
+        excludeFiles,
       )
 
       setStats(s => ({ ...s, docs: parts.length }))
@@ -238,10 +222,10 @@ export default function App() {
       addLog(`Processing complete — building ${parts.length} ${label} file(s)…`)
 
       for (const part of parts) {
-        const ext =
-          exportFormat === 'docx' ? 'docx' :
-          exportFormat === 'pdf' ? 'pdf' :
-          exportFormat === 'md' ? 'md' : 'txt'
+        const ext = exportFormat === 'docx' ? 'docx'
+          : exportFormat === 'pdf' ? 'pdf'
+          : exportFormat === 'md' ? 'md'
+          : 'txt'
 
         const fname = `${rootLabel}_part_${part.num}.${ext}`
         addLog(`Building ${fname} (${(part.charCount ?? 0).toLocaleString()} chars, ${part.chunks.length} files)…`)
@@ -257,7 +241,7 @@ export default function App() {
         await new Promise(r => setTimeout(r, 350))
       }
 
-      addLog(`Done! ${parts.length} file(s) exported successfully.`, 'ok')
+      addLog(`Done — ${parts.length} file(s) exported successfully.`, 'ok')
       setStatus(STATUS.DONE)
     } catch (err) {
       addLog(`Export failed: ${err?.message ?? String(err)}`, 'err')
@@ -272,10 +256,6 @@ export default function App() {
     setStats({ files: 0, chars: 0, tokens: 0, docs: 0 })
     setScanTotals({ chars: 0, tokens: 0, scanning: false, skippedNonText: 0 })
     setStatus(STATUS.IDLE)
-  }
-
-  const handleRefresh = () => {
-    setScanKey(k => k + 1)
   }
 
   const showLog = logEntries.length > 0
@@ -313,7 +293,7 @@ export default function App() {
         <div className={styles.sidebarBottom}>
           <div className={styles.hint}>
             <i className="ti ti-info-circle" aria-hidden="true" />
-            Use folder upload to preserve directory structure. Exports are built from included files only.
+            Use folder upload to preserve directory structure. Exports include only filtered files.
           </div>
         </div>
       </aside>
@@ -332,19 +312,36 @@ export default function App() {
           </div>
 
           <DropZone onFiles={handleFiles} />
-          <FileList files={files} includedExts={includedExts} skipDirs={skipDirs} onRemove={removeFile} />
+
+          {/* Pass excludeFiles so the list accurately reflects filter state */}
+          <FileList
+            files={files}
+            includedExts={includedExts}
+            skipDirs={skipDirs}
+            excludeFiles={excludeFiles}
+            onRemove={removeFile}
+          />
 
           {files.length > 0 && (
             <>
               <div className={styles.scanSummary}>
-                <StatCard value={scanTotals.scanning ? 'Scanning…' : scanTotals.chars.toLocaleString()} label="Included chars (text-like)" />
-                <StatCard value={scanTotals.scanning ? 'Scanning…' : scanTotals.tokens.toLocaleString()} label="Estimated tokens" />
-                <StatCard value={includedCount.toLocaleString()} label="Included files (after excludes)" />
+                <StatCard
+                  value={scanTotals.scanning ? 'Scanning…' : scanTotals.chars.toLocaleString()}
+                  label="Included chars (text-like)"
+                />
+                <StatCard
+                  value={scanTotals.scanning ? 'Scanning…' : scanTotals.tokens.toLocaleString()}
+                  label="Estimated tokens"
+                />
+                <StatCard
+                  value={includedCount.toLocaleString()}
+                  label="Included files"
+                />
               </div>
 
               {scanTotals.skippedNonText > 0 && (
                 <div className={styles.scanNote}>
-                  Skipped {scanTotals.skippedNonText.toLocaleString()} non-text file(s) from scan totals
+                  {scanTotals.skippedNonText.toLocaleString()} non-text file(s) excluded from scan totals
                 </div>
               )}
             </>
@@ -365,8 +362,8 @@ export default function App() {
                 inputMode="numeric"
                 value={maxCharsRaw}
                 disabled={isRunning}
-                onChange={(e) => setMaxCharsRaw(e.target.value)}
-                onBlur={(e) => {
+                onChange={e => setMaxCharsRaw(e.target.value)}
+                onBlur={e => {
                   const n = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10)
                   const clamped = isNaN(n) || n < 500 ? 500 : n
                   setMaxChars(clamped)
@@ -382,10 +379,10 @@ export default function App() {
                 className={styles.fieldInput}
                 value={rootLabel}
                 disabled={isRunning}
-                onChange={(e) => setRootLabel(e.target.value)}
+                onChange={e => setRootLabel(e.target.value)}
                 placeholder="project"
               />
-              <div className={styles.fieldHint}>Top-level path prefix in output docs</div>
+              <div className={styles.fieldHint}>Top-level path prefix used in output documents</div>
             </div>
           </div>
         </section>
@@ -403,7 +400,6 @@ export default function App() {
               onRemove={removeExt}
               placeholder=".js .ts .md"
             />
-
             <TagInput
               label="Skip directories"
               tags={skipDirs}
@@ -411,13 +407,12 @@ export default function App() {
               onRemove={removeSkip}
               placeholder="node_modules dist .git"
             />
-
             <TagInput
               label="Exclude file names"
               tags={excludeFiles}
               onAdd={addExclude}
               onRemove={removeExclude}
-              placeholder="package.json package-lock.json"
+              placeholder="package-lock.json yarn.lock"
             />
           </div>
         </section>
@@ -446,13 +441,13 @@ export default function App() {
               <select
                 className={styles.exportSelect}
                 value={exportFormat}
-                onChange={(e) => setExportFormat(e.target.value)}
+                onChange={e => setExportFormat(e.target.value)}
                 disabled={isRunning}
               >
-                <option value="docx">DOCX</option>
-                <option value="pdf">PDF</option>
-                <option value="txt">TXT</option>
                 <option value="md">Markdown (.md)</option>
+                <option value="txt">Plain text (.txt)</option>
+                <option value="docx">Word (.docx)</option>
+                <option value="pdf">PDF</option>
               </select>
             </label>
 
@@ -466,24 +461,14 @@ export default function App() {
                 : `Export ${includedCount > 0 ? `${includedCount} files` : exportFormat.toUpperCase()}`}
             </button>
 
-
             {files.length > 0 && (
-              <>
-                <button
-                  className={`${styles.btn} ${styles.btnSmall}`}
-                  onClick={handleRefresh}
-                  disabled={isRunning}
-                >
-                  Refresh
-                </button>
-                <button
-                  className={`${styles.btn} ${styles.resetBtn}`}
-                  onClick={handleReset}
-                  disabled={isRunning}
-                >
-                  Clear all
-                </button>
-              </>
+              <button
+                className={`${styles.btn} ${styles.resetBtn}`}
+                onClick={handleReset}
+                disabled={isRunning}
+              >
+                Clear all
+              </button>
             )}
           </div>
         </div>

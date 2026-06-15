@@ -1,19 +1,28 @@
 import { useRef, useState } from 'react'
 import styles from './DropZone.module.css'
 
-// readEntries must be called in a loop — it returns at most ~100 entries per call.
+// ---------------------------------------------------------------------------
+// FileSystem API traversal helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Reads all entries from a DirectoryReader.
+ * readEntries() returns at most ~100 entries per call, so we loop until empty.
+ */
 async function readAllEntries(reader) {
   const all = []
   while (true) {
-    const batch = await new Promise((resolve, reject) =>
-      reader.readEntries(resolve, reject)
-    )
+    const batch = await new Promise((resolve, reject) => reader.readEntries(resolve, reject))
     if (!batch.length) break
     all.push(...batch)
   }
   return all
 }
 
+/**
+ * Recursively traverses a FileSystemEntry, collecting File objects into `out`.
+ * Sets webkitRelativePath to preserve the directory structure.
+ */
 async function traverseEntry(entry, path, out) {
   if (entry.isFile) {
     await new Promise((resolve, reject) => {
@@ -31,10 +40,14 @@ async function traverseEntry(entry, path, out) {
     const reader = entry.createReader()
     const entries = await readAllEntries(reader)
     for (const ent of entries) {
-      await traverseEntry(ent, path + entry.name + '/', out)
+      await traverseEntry(ent, `${path}${entry.name}/`, out)
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export default function DropZone({ onFiles }) {
   const [dragging, setDragging] = useState(false)
@@ -49,9 +62,7 @@ export default function DropZone({ onFiles }) {
 
     for (const item of items) {
       const entry = item.webkitGetAsEntry?.()
-      if (entry) {
-        await traverseEntry(entry, '', files)
-      }
+      if (entry) await traverseEntry(entry, '', files)
     }
 
     if (files.length) onFiles(files)
@@ -60,7 +71,7 @@ export default function DropZone({ onFiles }) {
   const handleChange = (e) => {
     const files = [...e.target.files]
     if (files.length) onFiles(files)
-    e.target.value = ''
+    e.target.value = '' // reset so the same folder can be re-selected
   }
 
   return (

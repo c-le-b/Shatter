@@ -1,22 +1,21 @@
-// src/lib/txtBuilder.js
-
 function normalizeNewlines(str) {
   return String(str ?? '').replace(/\r\n/g, '\n').replace(/\r/g, '\n')
 }
 
+/**
+ * Builds a plain-text Blob from an array of { path, content } chunks.
+ *
+ * Options:
+ *   includeSeparators - wraps each file path in ==== delimiters (default true)
+ */
 export function buildTxtBlob(chunks, { includeSeparators = true } = {}) {
   const lines = []
 
   for (const { path, content } of chunks) {
-    if (includeSeparators) {
-      lines.push(`==== ${path} ====`)
-    } else {
-      lines.push(path)
-    }
+    lines.push(includeSeparators ? `==== ${path} ====` : path)
     lines.push(normalizeNewlines(content))
     lines.push('') // blank line between files
   }
 
-  const text = lines.join('\n')
-  return new Blob([text], { type: 'text/plain;charset=utf-8' })
+  return new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' })
 }
